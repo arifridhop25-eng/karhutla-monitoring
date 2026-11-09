@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="WebGIS pemantauan kebakaran hutan dan lahan di Kalimantan">
+  <title>Kalimantan Fire Monitoring System</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">🔥</div>
+    <div><h1>KALIMANTAN FIRE MONITORING</h1><p>Geospatial Forest & Land Fire Information System</p></div>
+  </div>
+  <div class="top-actions">
+    <span class="live-dot"></span><span>WEBGIS DASHBOARD</span>
+    <button id="exportBtn" class="top-button">Ekspor ringkasan CSV</button>
+  </div>
+</header>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="side-label">WORKSPACE</div>
+    <button class="nav-item active" data-section="dashboard"><span>▦</span> Dashboard</button>
+    <button class="nav-item" data-section="mapview"><span>⌖</span> Peta Interaktif</button>
+    <button class="nav-item" data-section="data"><span>▤</span> Data & Layer</button>
+    <button class="nav-item" data-section="upload"><span>↑</span> Tambah Data</button>
+    <button class="nav-item" data-section="about"><span>ⓘ</span> Tentang Sistem</button>
+
+    <div class="side-divider"></div>
+    <div class="side-label">FILTER PETA</div>
+    <label for="yearFilter">Tahun</label>
+    <select id="yearFilter"><option value="">Semua tahun</option></select>
+    <label for="provinceFilter">Provinsi</label>
+    <select id="provinceFilter"><option value="">Semua provinsi</option></select>
+    <button id="applyFilters" class="primary-button full">Terapkan filter</button>
+    <button id="resetFilters" class="ghost-button full">Reset filter</button>
+    <div class="side-divider"></div>
+    <div class="side-label">LEGENDA UMUM</div>
+    <div class="legend-row"><i class="legend-dot hotspot"></i> Hotspot</div>
+    <div class="legend-row"><i class="legend-square burned"></i> Area terbakar</div>
+    <div class="legend-row"><i class="legend-square risk"></i> Kerawanan tinggi</div>
+    <p class="sidebar-note">Legenda dapat disesuaikan dengan simbol layer yang diunggah.</p>
+  </aside>
+
+  <main class="main-content">
+    <section id="dashboard" class="page-section active">
+      <div class="page-title">
+        <div><div class="eyebrow">RINGKASAN SPASIAL</div><h2>Dashboard Kebakaran Hutan</h2>
+        <p>Visualisasi informasi kebakaran hutan dan lahan di Pulau Kalimantan.</p></div>
+        <div class="date-chip" id="todayLabel"></div>
+      </div>
+
+      <div class="stat-grid">
+        <article class="stat-card"><div class="stat-label">TOTAL HOTSPOT</div><div class="stat-value" id="hotspotTotal">0</div><div class="stat-foot">Fitur titik yang termuat</div></article>
+        <article class="stat-card"><div class="stat-label">LUAS TERBAKAR</div><div class="stat-value" id="burnedTotal">—</div><div class="stat-foot">Menggunakan atribut luas jika tersedia</div></article>
+        <article class="stat-card"><div class="stat-label">LAYER DIMUAT</div><div class="stat-value" id="layerTotal">0</div><div class="stat-foot">Layer vektor dan raster</div></article>
+        <article class="stat-card"><div class="stat-label">PROVINSI TERWAKILI</div><div class="stat-value" id="provinceTotal">0</div><div class="stat-foot">Berdasarkan atribut data</div></article>
+      </div>
+
+      <div class="content-grid">
+        <article class="panel map-panel">
+          <div class="panel-heading"><div><h3>Peta Persebaran Kebakaran</h3><p>Gunakan kontrol layer di kanan atas peta.</p></div><button class="small-button" data-goto="mapview">Perbesar peta ↗</button></div>
+          <div id="mapDashboard" class="map-canvas"></div>
+        </article>
+        <article class="panel chart-panel">
+          <div class="panel-heading"><div><h3>Komposisi Data</h3><p>Jumlah fitur yang sedang dimuat.</p></div></div>
+          <canvas id="compositionChart"></canvas>
+          <div id="chartFallback" class="muted small">Grafik akan muncul setelah data dimuat.</div>
+        </article>
+      </div>
+      <article class="panel">
+        <div class="panel-heading"><div><h3>Data yang Dimuat</h3><p>Daftar ringkas layer dalam sesi ini.</p></div><button class="small-button" data-goto="data">Kelola layer</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Nama layer</th><th>Jenis</th><th>Jumlah fitur</th><th>Status</th></tr></thead><tbody id="summaryTable"><tr><td colspan="4" class="empty-cell">Belum ada data. Tambahkan data melalui menu Tambah Data.</td></tr></tbody></table></div>
+      </article>
+    </section>
+
+    <section id="mapview" class="page-section">
+      <div class="page-title"><div><div class="eyebrow">SPATIAL VIEWER</div><h2>Peta Interaktif</h2><p>Eksplorasi layer spasial hasil pengolahan GIS.</p></div></div>
+      <article class="panel full-map-panel"><div id="mapFull" class="map-canvas large-map"></div></article>
+      <p class="helper-text">Klik fitur untuk melihat atribut. Gunakan ikon layer pada pojok kanan atas peta untuk mengatur tampilan.</p>
+    </section>
+
+    <section id="data" class="page-section">
+      <div class="page-title"><div><div class="eyebrow">LAYER CONTROL</div><h2>Data & Manajemen Layer</h2><p>Atur visibilitas dan hapus layer dari sesi kerja.</p></div><button class="primary-button" data-goto="upload">+ Tambah data</button></div>
+      <article class="panel"><div id="layerList" class="layer-list"><div class="empty-state">Belum ada layer yang dimuat.</div></div></article>
+      <article class="panel"><div class="panel-heading"><div><h3>Informasi fitur terpilih</h3><p>Atribut dari objek terakhir yang diklik pada peta.</p></div></div><div id="featureDetails" class="feature-details">Belum ada fitur yang dipilih.</div></article>
+    </section>
+
+    <section id="upload" class="page-section">
+      <div class="page-title"><div><div class="eyebrow">DATA INGESTION</div><h2>Tambah Data Spasial</h2><p>Unggah hasil pengolahan dari QGIS, ArcGIS Pro, atau perangkat lunak GIS lainnya.</p></div></div>
+      <div class="upload-grid">
+        <article class="panel upload-card">
+          <div class="upload-icon">▱</div><h3>Vektor: GeoJSON / JSON</h3><p>Untuk titik hotspot, batas administrasi, area terbakar, dan kelas kerawanan.</p>
+          <input type="file" id="geojsonInput" accept=".geojson,.json">
+          <button class="primary-button" id="loadGeojson">Muat GeoJSON</button>
+        </article>
+        <article class="panel upload-card">
+          <div class="upload-icon">▦</div><h3>Shapefile (ZIP)</h3><p>ZIP harus berisi komponen .shp, .shx, .dbf dan disarankan .prj.</p>
+          <input type="file" id="shpInput" accept=".zip">
+          <button class="primary-button" id="loadShp">Muat Shapefile ZIP</button>
+        </article>
+        <article class="panel upload-card">
+          <div class="upload-icon">▥</div><h3>Raster: GeoTIFF</h3><p>Untuk hasil klasifikasi, indeks, atau raster kerawanan. Raster besar mungkin membutuhkan waktu dan memori.</p>
+          <input type="file" id="tiffInput" accept=".tif,.tiff">
+          <button class="primary-button" id="loadTiff">Muat GeoTIFF</button>
+        </article>
+        <article class="panel upload-card">
+          <div class="upload-icon">▤</div><h3>Tabel: CSV / Excel</h3><p>CSV/Excel dengan kolom koordinat latitude dan longitude dapat ditampilkan sebagai titik.</p>
+          <input type="file" id="tableInput" accept=".csv,.xlsx,.xls">
+          <button class="primary-button" id="loadTable">Muat tabel koordinat</button>
+        </article>
+        <article class="panel upload-card">
+          <div class="upload-icon">▧</div><h3>Gambar peta: PNG / JPG</h3><p>Tambahkan gambar peta sebagai overlay. Masukkan batas koordinat geografis gambar.</p>
+          <input type="file" id="imageInput" accept=".png,.jpg,.jpeg">
+          <div class="bounds-grid">
+            <label>Utara (lat)<input id="north" type="number" step="any" placeholder="3.5"></label>
+            <label>Selatan (lat)<input id="south" type="number" step="any" placeholder="-4.5"></label>
+            <label>Timur (lon)<input id="east" type="number" step="any" placeholder="119.5"></label>
+            <label>Barat (lon)<input id="west" type="number" step="any" placeholder="108.0"></label>
+          </div>
+          <button class="primary-button" id="loadImage">Muat image overlay</button>
+        </article>
+        <article class="panel upload-card conversion-card">
+          <div class="upload-icon">⇄</div><h3>GeoPackage (GPKG)</h3><p>Versi browser ini belum membaca GPKG secara langsung. Ekspor layer dari QGIS menjadi GeoJSON, lalu unggah di sini.</p>
+          <ol><li>Klik kanan layer GPKG di QGIS.</li><li>Pilih Export → Save Features As.</li><li>Pilih format GeoJSON dan CRS EPSG:4326.</li><li>Unggah hasil GeoJSON.</li></ol>
+        </article>
+      </div>
+      <div class="notice"><strong>Catatan koordinat:</strong> Untuk GeoJSON dan data titik, gunakan sistem koordinat geografis WGS 84 (EPSG:4326). Untuk GeoTIFF, gunakan raster yang memiliki informasi CRS/georeferensi yang benar. File yang dipilih diproses di browser dan tidak diunggah ke server.</div>
+      <div id="uploadMessage" class="upload-message" role="status"></div>
+    </section>
+
+    <section id="about" class="page-section">
+      <div class="page-title"><div><div class="eyebrow">INFORMASI PLATFORM</div><h2>Tentang Sistem</h2><p>Platform visualisasi informasi spasial kebakaran hutan dan lahan.</p></div></div>
+      <article class="panel prose">
+        <h3>Kalimantan Fire Monitoring System</h3>
+        <p>WebGIS ini dirancang sebagai antarmuka untuk menyajikan hasil pengolahan data kebakaran hutan dan lahan di Pulau Kalimantan. Pengguna dapat memuat data vektor, raster, tabel koordinat, serta gambar peta untuk ditampilkan pada peta interaktif.</p>
+        <h3>Catatan penggunaan ilmiah</h3>
+        <p>Angka statistik pada dashboard dihitung dari data yang dimuat dan atribut yang dikenali. Luas terbakar hanya dijumlahkan jika tersedia atribut luas yang sesuai, misalnya <code>area_ha</code>, <code>luas_ha</code>, atau <code>area_km2</code>. Pastikan definisi atribut, satuan, tahun, sumber data, dan sistem koordinat diverifikasi sebelum digunakan dalam laporan atau publikasi.</p>
+        <p>Website versi ini merupakan prototipe sisi-klien. Data yang dimuat tidak tersimpan permanen setelah halaman ditutup atau dimuat ulang.</p>
+      </article>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/shpjs@latest/dist/shp.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/georaster/dist/georaster.browser.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/georaster-layer-for-leaflet/dist/georaster-layer-for-leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
